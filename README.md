@@ -57,3 +57,27 @@ Careful design, validation, and documentation of the proxy are essential to miti
   - Cons: Harder to interpret, more challenging to document and justify to regulators, and may require additional tools (e.g., SHAP values) for explanation.
 
 In regulated financial contexts, the choice often balances predictive power with the need for interpretability and regulatory compliance.
+
+# Exploratory Data Analysis (EDA)
+
+As part of Task 2, an in-depth exploratory data analysis (EDA) was conducted to understand the structure, quality, and patterns in the dataset. The following steps were performed:
+
+1. **Overview of the Data**: Loaded the dataset, checked the number of rows and columns, and previewed the first few records.
+2. **Data Types and Basic Info**: Inspected data types and non-null counts for each column.
+3. **Summary Statistics**: Generated summary statistics for both numerical and categorical features.
+4. **Distribution of Numerical Features**: Visualized distributions using histograms to identify patterns, skewness, and outliers.
+5. **Distribution of Categorical Features**: Analyzed the frequency of categories using bar plots.
+6. **Correlation Analysis**: Computed and visualized the correlation matrix for numerical features.
+7. **Identifying Missing Values**: Checked for missing values and visualized their presence using a heatmap.
+8. **Outlier Detection**: Used box plots to identify outliers in key numerical features.
+
+## Key EDA Insights
+
+- **No Missing Values**: All columns are complete; no imputation or row removal is needed.
+- **High Correlation**: `Amount` and `Value` are extremely highly correlated (≈ 0.99), suggesting redundancy.
+- **FraudResult Correlation**: `FraudResult` has a moderate positive correlation with both `Amount` and `Value` (≈ 0.56–0.57).
+- **Categorical Features**: `CurrencyCode` has only one unique value and can be dropped. Features like `ProviderId`, `ProductId`, `ProductCategory`, and `ChannelId` are suitable for encoding. High-cardinality columns (`AccountId`, `SubscriptionId`, `CustomerId`) are better used for aggregation (e.g., RFM features).
+- **Data Uniqueness**: `TransactionId` is unique for every row; repeated values in customer/account columns confirm multiple transactions per customer.
+- **No Major Data Quality Issues**: Data types and value ranges are as expected; no significant outliers or anomalies detected.
+
+These findings will guide the next steps in feature engineering and model development.
