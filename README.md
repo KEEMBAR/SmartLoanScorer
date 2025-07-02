@@ -80,4 +80,27 @@ As part of Task 2, an in-depth exploratory data analysis (EDA) was conducted to 
 - **Data Uniqueness**: `TransactionId` is unique for every row; repeated values in customer/account columns confirm multiple transactions per customer.
 - **No Major Data Quality Issues**: Data types and value ranges are as expected; no significant outliers or anomalies detected.
 
-These findings will guide the next steps in feature engineering and model development.
+# Feature Engineering (Task 3)
+
+As part of Task 3, a robust, automated, and reproducible feature engineering pipeline was developed and implemented in `src/data_processing.py`. This pipeline prepares the raw transaction data for model training by transforming it into meaningful, model-ready features at the customer level. The pipeline is built using scikit-learn's `Pipeline` and `ColumnTransformer` for modularity and reproducibility.
+
+**Key steps in the feature engineering pipeline:**
+
+- **Aggregation:**
+
+  - Numerical features: For each customer, the pipeline computes the total, average, count, and standard deviation of transaction amounts.
+  - Categorical features: For each customer, the most frequent `ProductCategory`, `ChannelId`, and `ProviderId` are determined.
+  - Date/Time features: The most frequent transaction hour, month, and year are extracted per customer.
+
+- **Categorical Encoding:**
+
+  - Aggregated categorical features are encoded using OneHotEncoder, converting them into binary vectors suitable for machine learning models.
+
+- **Numerical Feature Scaling:**
+
+  - Numerical features are imputed for missing values (if any) and then scaled using either standardization (StandardScaler) or normalization (MinMaxScaler), as selected in the pipeline.
+
+- **Pipeline Automation:**
+  - All steps are chained together using scikit-learn's `Pipeline` and `ColumnTransformer`, ensuring that the same transformations are applied consistently during both training and inference.
+
+This feature engineering approach ensures that the data is clean, consistent, and contains rich information about each customer's transaction behavior, providing a strong foundation for building predictive credit risk models.
