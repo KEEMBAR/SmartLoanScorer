@@ -1,25 +1,24 @@
-# Feature engineering and data processing functions will go here.
-# import pandas as pd
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, MinMaxScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
-
-# --- Utility function for aggregation ---
+from datetime import datetime
+ 
+# ---------- Utility ----------
 def most_frequent(series):
-    """Return the most frequent value in a Series (mode)."""
     return series.mode()[0] if not series.mode().empty else np.nan
 
-# --- A. Aggregate Features Transformer ---
+# ---------- Custom Transformers ----------
+
 class AggregateFeaturesTransformer(BaseEstimator, TransformerMixin):
     """
-    Aggregates transaction data at the customer level, including numerical and categorical features.
+    Aggregates transaction data at the customer level, including:
     - Numerical: total, average, count, std of Amount
     - Categorical: most frequent ProductCategory, ChannelId, ProviderId
-    - Date/Time: most frequent transaction hour, month, year
+    - Datetime: most frequent hour, day, month, year
     """
     def __init__(self, customer_id_col='CustomerId', amount_col='Amount',
                  cat_cols=['ProductCategory', 'ChannelId', 'ProviderId'],
@@ -34,37 +33,36 @@ class AggregateFeaturesTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         X = X.copy()
-        # Convert datetime column
         X[self.datetime_col] = pd.to_datetime(X[self.datetime_col])
         X['transaction_hour'] = X[self.datetime_col].dt.hour
+        X['transaction_day'] = X[self.datetime_col].dt.day
         X['transaction_month'] = X[self.datetime_col].dt.month
         X['transaction_year'] = X[self.datetime_col].dt.year
-        # Aggregation dictionary
+
         agg_dict = {
             self.amount_col: ['sum', 'mean', 'count', 'std'],
             'transaction_hour': most_frequent,
+            'transaction_day': most_frequent,
             'transaction_month': most_frequent,
             'transaction_year': most_frequent
         }
+
         for col in self.cat_cols:
             agg_dict[col] = most_frequent
+
         agg_df = X.groupby(self.customer_id_col).agg(agg_dict)
-        # Flatten MultiIndex columns
-        agg_df.columns = ['_'.join([c for c in col if c]) for col in agg_df.columns.values]
+        agg_df.columns = ['_'.join([str(c) for c in col if c]) for col in agg_df.columns.values]
         agg_df = agg_df.reset_index()
+
         return agg_df
 
-# --- B. Feature Engineering Pipeline Builder ---
-def build_feature_engineering_pipeline(scaling='standard', use_woe=False):
+# ---------- Feature Engineering Pipeline ----------
+
+def build_feature_engineering_pipeline(encoding='onehot', scaling='standard'):
     """
-    Build a robust sklearn pipeline for feature engineering.
-    Args:
-        scaling: 'standard' for StandardScaler, 'minmax' for MinMaxScaler
-        use_woe: If True, apply WoE encoding to categorical features (placeholder)
-    Returns:
-        sklearn Pipeline object
+    encoding: 'onehot' or 'label'
+    scaling: 'standard' or 'minmax'
     """
-    # Columns after aggregation
     categorical_cols = [
         'ProductCategory_most_frequent',
         'ChannelId_most_frequent',
@@ -73,37 +71,79 @@ def build_feature_engineering_pipeline(scaling='standard', use_woe=False):
     numerical_cols = [
         'Amount_sum', 'Amount_mean', 'Amount_count', 'Amount_std',
         'transaction_hour_most_frequent',
+        'transaction_day_most_frequent',
         'transaction_month_most_frequent',
         'transaction_year_most_frequent'
     ]
-    # Imputation and scaling pipeline for numerical features
+
     num_pipeline = Pipeline([
-        ('impute', SimpleImputer(strategy='mean')),
-        ('scale', StandardScaler() if scaling == 'standard' else MinMaxScaler())
+        ('imputer', SimpleImputer(strategy='mean')),
+        ('scaler', StandardScaler() if scaling == 'standard' else MinMaxScaler())
     ])
-    # Categorical encoding pipeline
-    cat_pipeline = Pipeline([
-        # Placeholder for WoE encoding
-        # ('woe', WoEEncoder()),
-        ('onehot', OneHotEncoder(handle_unknown='ignore'))
-    ])
-    # ColumnTransformer to apply transformations
+
+    if encoding == 'onehot':
+        cat_pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+        ])
+    elif encoding == 'label':
+        # Label encoding per column
+        class MultiLabelEncoder(BaseEstimator, TransformerMixin):
+            def fit(self, X, y=None):
+                self.encoders = {col: LabelEncoder().fit(X[col].astype(str)) for col in X.columns}
+                return self
+
+            def transform(self, X):
+                return pd.DataFrame({
+                    col: self.encoders[col].transform(X[col].astype(str))
+                    for col in X.columns
+                })
+        cat_pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('label', MultiLabelEncoder())
+        ])
+    else:
+        raise ValueError(f"Unsupported encoding method: {encoding}")
+
     preprocessor = ColumnTransformer([
         ('num', num_pipeline, numerical_cols),
         ('cat', cat_pipeline, categorical_cols)
-    ], remainder='passthrough')
-    # Full pipeline
+    ], remainder='passthrough')  # Keeps CustomerId
+
     pipeline = Pipeline([
         ('aggregate_features', AggregateFeaturesTransformer()),
         ('preprocessing', preprocessor)
     ])
+
     return pipeline
 
-# --- Example usage (for testing, not for production) ---
+# ---------- Execution Example ----------
+
 if __name__ == "__main__":
-    # Load your data
-    df = pd.read_csv('../data/raw/data.csv')
-    # Build and fit the pipeline (choose scaling: 'standard' or 'minmax')
-    pipeline = build_feature_engineering_pipeline(scaling='standard')
-    processed = pipeline.fit_transform(df)
-    print(processed)
+    # 1. Load raw data
+    df = pd.read_csv('data/raw/data.csv')
+
+    # 2. Build pipeline
+    pipeline = build_feature_engineering_pipeline(encoding='onehot', scaling='standard')
+
+    # 3. Fit & transform
+    processed_array = pipeline.fit_transform(df)
+
+    # 4. Generate final column names
+    preprocessor = pipeline.named_steps['preprocessing']
+    ohe = None
+    if 'onehot' in preprocessor.named_transformers_['cat'].named_steps:
+        ohe = preprocessor.named_transformers_['cat'].named_steps['onehot']
+        cat_cols = preprocessor.transformers_[1][2]
+        ohe_feature_names = ohe.get_feature_names_out(cat_cols)
+    else:
+        ohe_feature_names = preprocessor.transformers_[1][2]
+
+    num_cols = preprocessor.transformers_[0][2]
+    passthrough = ['CustomerId']  # assumed passed through
+    final_feature_names = list(num_cols) + list(ohe_feature_names) + passthrough
+
+    # 5. Save processed features
+    processed_df = pd.DataFrame(processed_array, columns=final_feature_names)
+    processed_df.to_csv('data/processed/customer_features.csv', index=False)
+    print("✅ Processed features saved to data/processed/customer_features.csv")
