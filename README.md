@@ -104,3 +104,33 @@ As part of Task 3, a robust, automated, and reproducible feature engineering pip
   - All steps are chained together using scikit-learn's `Pipeline` and `ColumnTransformer`, ensuring that the same transformations are applied consistently during both training and inference.
 
 This feature engineering approach ensures that the data is clean, consistent, and contains rich information about each customer's transaction behavior, providing a strong foundation for building predictive credit risk models.
+
+# Model Training and Tracking (Task 5)
+
+As part of Task 5, a structured and reproducible model training process was implemented, including experiment tracking, model versioning, and unit testing.
+
+**Key steps in the model training and tracking pipeline:**
+
+- **Data Splitting:**
+
+  - The processed customer-level dataset (with proxy target) is split into training and testing sets to evaluate model performance on unseen data.
+
+- **Model Selection and Training:**
+
+  - At least two models are trained: Logistic Regression and Random Forest.
+  - Hyperparameter tuning is performed using GridSearchCV for both models.
+
+- **Model Evaluation:**
+
+  - Models are evaluated using multiple metrics: Accuracy, Precision, Recall, F1 Score, and ROC-AUC.
+  - The best model is selected based on ROC-AUC score.
+
+- **Experiment Tracking with MLflow:**
+
+  - All experiments, parameters, metrics, and trained models are tracked using MLflow.
+  - The best model is registered in the MLflow Model Registry for versioning and reproducibility.
+  - The MLflow tracking server is configured to use a local `mlruns/` directory (which should be added to `.gitignore`).
+
+- **Unit Testing:**
+  - Unit tests for data processing helper functions (e.g., `most_frequent`) are implemented in `tests/test_data_processing.py`.
+  - All tests pass, ensuring the reliability of the data processing pipeline.
