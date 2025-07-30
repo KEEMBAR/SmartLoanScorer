@@ -134,3 +134,23 @@ As part of Task 5, a structured and reproducible model training process was impl
 - **Unit Testing:**
   - Unit tests for data processing helper functions (e.g., `most_frequent`) are implemented in `tests/test_data_processing.py`.
   - All tests pass, ensuring the reliability of the data processing pipeline.
+## Task 6 - Model Deployment and Continuous Integration
+
+In this final task, the trained credit risk model is deployed as a REST API using FastAPI. The API loads the best model from the MLflow Model Registry and exposes a `/predict` endpoint for batch risk scoring. Pydantic models are used for request and response validation to ensure robust data handling.
+
+The project is containerized using Docker, allowing for easy deployment and scalability. A `docker-compose.yml` file is provided for streamlined local development and deployment.
+
+Continuous Integration (CI) is set up using GitHub Actions. The workflow automatically runs code linting (with flake8) and unit tests (with pytest) on every push or pull request to the main branch. This ensures code quality and reliability before deployment.
+
+**Key Deliverables:**
+- FastAPI application for serving predictions (`src/api/main.py`)
+- Pydantic models for request/response validation (`src/api/pydantic_models.py`)
+- Dockerfile and docker-compose for containerization
+- `.github/workflows/ci.yml` for automated linting and testing
+
+**How to use:**
+- Run the API locally or with Docker to serve predictions.
+- Use the `/predict` endpoint to get risk probabilities for new customers.
+- All code changes are automatically checked for style and correctness via CI.
+
+This task completes the end-to-end MLOps workflow, making the credit risk model production-ready
