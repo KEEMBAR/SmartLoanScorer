@@ -9,4 +9,4 @@ uvicorn
 flake8
 black
 mlflow
-pytest 
+pytest
