@@ -22,6 +22,8 @@ SmartLoanScorer/
 │   └── api/
 │       ├── main.py            # FastAPI application
 │       └── pydantic_models.py # Pydantic models for API
+├── app/
+│   └── streamlit_app.py       # Streamlit dashboard for demo
 ├── tests/
 │   └── test_data_processing.py # Unit tests
 ├── Dockerfile
@@ -29,6 +31,43 @@ SmartLoanScorer/
 ├── requirements.txt
 ├── .gitignore
 └── README.md
+```
+
+## What’s new (finance-grade improvements)
+
+- Persisted best model to `models/best_model.joblib` for reliable deployment and audit.
+- Logged global explainability artifact `models/shap_summary.png` using SHAP.
+- Inference: robust CLI `src/predict.py` for batch scoring CSVs.
+- API: MLflow registry load with automatic local model fallback.
+- Dashboard: `app/streamlit_app.py` to demo scoring and show explainability.
+- CI/CD: basic API sanity test added; requirements extended for coverage and httpx.
+
+## Quickstart
+
+- Prepare data features and target as per pipeline (see below), then train:
+
+```bash
+python -m src.train
+```
+
+Artifacts saved to `models/` and logged in MLflow at `mlruns/`.
+
+- Run API locally:
+
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+- Batch predict on processed features:
+
+```bash
+python -m src.predict --input_csv data/processed/customer_features.csv --output_csv data/processed/predictions.csv
+```
+
+- Run the dashboard:
+
+```bash
+streamlit run app/streamlit_app.py
 ```
 
 # Credit Scoring Business Understanding
@@ -134,6 +173,7 @@ As part of Task 5, a structured and reproducible model training process was impl
 - **Unit Testing:**
   - Unit tests for data processing helper functions (e.g., `most_frequent`) are implemented in `tests/test_data_processing.py`.
   - All tests pass, ensuring the reliability of the data processing pipeline.
+
 ## Task 6 - Model Deployment and Continuous Integration
 
 In this final task, the trained credit risk model is deployed as a REST API using FastAPI. The API loads the best model from the MLflow Model Registry and exposes a `/predict` endpoint for batch risk scoring. Pydantic models are used for request and response validation to ensure robust data handling.
@@ -143,12 +183,14 @@ The project is containerized using Docker, allowing for easy deployment and scal
 Continuous Integration (CI) is set up using GitHub Actions. The workflow automatically runs code linting (with flake8) and unit tests (with pytest) on every push or pull request to the main branch. This ensures code quality and reliability before deployment.
 
 **Key Deliverables:**
+
 - FastAPI application for serving predictions (`src/api/main.py`)
 - Pydantic models for request/response validation (`src/api/pydantic_models.py`)
 - Dockerfile and docker-compose for containerization
 - `.github/workflows/ci.yml` for automated linting and testing
 
 **How to use:**
+
 - Run the API locally or with Docker to serve predictions.
 - Use the `/predict` endpoint to get risk probabilities for new customers.
 - All code changes are automatically checked for style and correctness via CI.

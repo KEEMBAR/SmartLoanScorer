@@ -23,16 +23,53 @@ from sklearn.metrics import (
 import mlflow
 import mlflow.sklearn
 from datetime import datetime
+import json
+import joblib
+import shap
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from pathlib import Path
 
 # --- Path setup ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_PATH = os.path.join(BASE_DIR, 'data', 'processed', 'customer_features_with_target.csv')
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
 os.makedirs(MODELS_DIR, exist_ok=True)
+BEST_MODEL_PATH = os.path.join(MODELS_DIR, 'best_model.joblib')
+FEATURE_NAMES_PATH = os.path.join(MODELS_DIR, 'feature_names.json')
+SHAP_SUMMARY_PATH = os.path.join(MODELS_DIR, 'shap_summary.png')
 
 # --- MLflow setup ---
 mlflow.set_tracking_uri("file:" + os.path.join(BASE_DIR, "mlruns"))
 mlflow.set_experiment("customer_risk_prediction")
+
+def save_local_model_and_artifacts(model, X_train: pd.DataFrame):
+    """Persist the best model, feature names, and SHAP summary plot to models/.
+    """
+    # Save model
+    joblib.dump(model, BEST_MODEL_PATH)
+    # Save feature names
+    with open(FEATURE_NAMES_PATH, 'w') as f:
+        json.dump(list(X_train.columns), f)
+    # Compute and save SHAP summary
+    try:
+        sample = X_train.sample(n=min(1000, len(X_train)), random_state=42)
+        explainer = None
+        if isinstance(model, RandomForestClassifier):
+            explainer = shap.TreeExplainer(model)
+        elif isinstance(model, LogisticRegression):
+            explainer = shap.LinearExplainer(model, sample)
+        else:
+            explainer = shap.Explainer(model, sample)
+        shap_values = explainer(sample)
+        plt.figure(figsize=(10, 6))
+        shap.summary_plot(shap_values, sample, show=False)
+        plt.tight_layout()
+        plt.savefig(SHAP_SUMMARY_PATH)
+        plt.close()
+    except Exception as e:
+        print(f"⚠️ SHAP computation failed: {e}")
 
 def load_and_prepare_data():
     """Load and prepare data for training."""
@@ -183,11 +220,20 @@ def main():
     print(f"\n🏆 Best Model: {best_model_name}")
     print(f"🏆 Best ROC-AUC: {best_metrics['roc_auc']:.4f}")
     
+    # Save locally and log artifacts
+    save_local_model_and_artifacts(best_model, X_train)
+    print(f"💾 Best model saved to {BEST_MODEL_PATH}")
+
     # Register best model
     with mlflow.start_run(run_name="best_model"):
         mlflow.log_params(best_model.get_params())
         mlflow.log_metrics(best_metrics)
         mlflow.sklearn.log_model(best_model, "best_model")
+        # Log local artifacts to MLflow as well (optional)
+        if os.path.exists(BEST_MODEL_PATH):
+            mlflow.log_artifact(BEST_MODEL_PATH, artifact_path="artifacts")
+        if os.path.exists(SHAP_SUMMARY_PATH):
+            mlflow.log_artifact(SHAP_SUMMARY_PATH, artifact_path="artifacts")
         
         # Register model in MLflow Model Registry
         model_uri = f"runs:/{mlflow.active_run().info.run_id}/best_model"
