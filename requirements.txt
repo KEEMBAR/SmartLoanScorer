@@ -10,3 +10,10 @@ flake8
 black
 mlflow
 pytest
+# Added for explainability and dashboard
+shap
+streamlit
+joblib
+# Test coverage and HTTP client for API tests
+pytest-cov
+httpx
